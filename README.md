@@ -4,6 +4,7 @@
 agent's own tool-dispatch boundary, across both Claude Code and Codex.**
 
 [![CI](https://github.com/saagpatel/cross-provider-egress-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/saagpatel/cross-provider-egress-guard/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/saagpatel/cross-provider-egress-guard)](https://github.com/saagpatel/cross-provider-egress-guard/releases/latest)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 > A default-deny firewall for your coding agent's tool calls: a hijacked or prompt-injected
@@ -82,7 +83,9 @@ gated). Full model: [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) and
 [docs/DESIGN.md](docs/DESIGN.md). Mapped to the
 [OWASP Top 10 for LLM Applications (2025)](docs/OWASP-LLM-MAPPING.md).
 
-## Quickstart: see it work (no install, offline)
+## Quickstart
+
+No install required — runs entirely offline against the in-repo hooks:
 
 ```bash
 git clone https://github.com/saagpatel/cross-provider-egress-guard
@@ -98,9 +101,12 @@ parity check proving they read one shared policy) is the CI gate.
 
 ## Install
 
-See [docs/INSTALL.md](docs/INSTALL.md) to deploy the Claude Code hooks and apply the Codex
-patch, and [policy/mcp-gate-policy.example.json](policy/mcp-gate-policy.example.json) for a
-commented starter policy to copy and edit for your environment.
+Quick deploy (three steps):
+1. Copy `policy/mcp-gate-policy.example.json` to `~/.claude/mcp-gate-policy.json` and set your `allow_hosts`, `allow_connectors`, and owner values.
+2. Copy the hooks from `claude-code/` into `~/.claude/hooks/` (CC) and apply `codex/codex-egress.patch` to your Codex checkout.
+3. Wire the hooks into `~/.claude/settings.json` per the `PreToolUse` entries in [docs/INSTALL.md](docs/INSTALL.md).
+
+See [docs/INSTALL.md](docs/INSTALL.md) for the full runbook and [policy/mcp-gate-policy.example.json](policy/mcp-gate-policy.example.json) for the annotated starter policy.
 
 ## What it does *not* do
 

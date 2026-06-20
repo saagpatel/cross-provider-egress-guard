@@ -28,7 +28,7 @@ index 35fc123..4c92c55 100644
 +# Claude Code mcp-guard.sh Layer 2.5. Reads the SAME canonical allow-list
 +# (~/.claude/mcp-gate-policy.json `.egress` block) so both agents enforce one
 +# source of truth. Fail-closed: any failure to read/parse the policy denies
-+# network-class commands/tools. See cross-provider-egress-guard/THREAT-MODEL-FREEZE.md.
++# network-class commands/tools. See cross-provider-egress-guard/docs/THREAT-MODEL.md.
 +
 +EGRESS_LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"}
 +EGRESS_SHELL_NET_RE = re.compile(
