@@ -102,6 +102,10 @@ See [docs/INSTALL.md](docs/INSTALL.md) to deploy the Claude Code hooks and apply
 patch, and [policy/mcp-gate-policy.example.json](policy/mcp-gate-policy.example.json) for a
 commented starter policy to copy and edit for your environment.
 
+## Adoption Kit
+
+If you want the shortest receipt-producing path, start with [docs/ADOPTION-KIT.md](docs/ADOPTION-KIT.md). It summarizes the threat model, install path, default-deny examples, local verification commands, demo references, and provider-parity caveats. For the broader trust story across Egress Guard, OPERANT, MCPAudit, and mcpforge, see [docs/CONTROL-PLUS-CALIBRATION.md](docs/CONTROL-PLUS-CALIBRATION.md).
+
 ## What it does *not* do
 
 It is **one layer, not a silver bullet.** It does not track output-side data flow, decode
