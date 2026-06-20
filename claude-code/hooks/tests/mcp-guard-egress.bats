@@ -144,7 +144,12 @@ run_hook_token() {
   [ "$is_deny" -eq 0 ]
 }
 @test "High-risk: ctx_execute requires a confirmation token" {
-  run_hook '{"tool_name":"mcp__plugin_context-mode_context-mode__ctx_execute","tool_input":{"code":"1"}}'
+  # Self-contained token-gate check: run_hook_token builds its own policy that
+  # require_tokens ctx_execute and creates no token, so the gate must deny. This
+  # does not depend on the active fixture policy (whose require_token is empty, so
+  # the global policy would allow this local tool); it mirrors how the plain-bash
+  # harness gates this case via requires_token rather than the shared fixture.
+  run_hook_token ""
   [ "$is_deny" -eq 1 ]
 }
 @test "Non-network: ordinary MCP tool is unaffected" {
