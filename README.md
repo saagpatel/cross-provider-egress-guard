@@ -103,7 +103,7 @@ parity check proving they read one shared policy) is the CI gate.
 
 Quick deploy (three steps):
 1. Copy `policy/mcp-gate-policy.example.json` to `~/.claude/mcp-gate-policy.json` and set your `allow_hosts`, `allow_connectors`, and owner values.
-2. Copy the hooks from `claude-code/` into `~/.claude/hooks/` (CC) and apply `codex/codex-egress.patch` to your Codex checkout.
+2. Copy `claude-code/hooks/lib/deny.sh` to `~/.claude/hooks/lib/` and `claude-code/hooks/*.sh` to `~/.claude/hooks/` (CC); apply `codex/codex-egress.patch` to your Codex checkout.
 3. Wire the hooks into `~/.claude/settings.json` per the `PreToolUse` entries in [docs/INSTALL.md](docs/INSTALL.md).
 
 See [docs/INSTALL.md](docs/INSTALL.md) for the full runbook and [policy/mcp-gate-policy.example.json](policy/mcp-gate-policy.example.json) for the annotated starter policy.
