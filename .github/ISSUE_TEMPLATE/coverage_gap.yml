@@ -1,0 +1,48 @@
+name: Coverage gap (un-gated network tool)
+description: A network/send-class tool or shell command that reaches the network but is NOT currently gated.
+labels: ["coverage-gap"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The guard does not auto-cover new or renamed tools: a network/send-class tool whose
+        name matches none of the policy globs can slip through. If you found one, report it
+        here so it can be added to the default coverage.
+
+        **If you can already demonstrate data leaving to an attacker host through this tool,
+        treat it as a bypass and report it privately** per [SECURITY.md](../blob/main/SECURITY.md).
+  - type: input
+    id: tool-name
+    attributes:
+      label: Tool name or command
+      description: The full MCP tool name (e.g. `mcp__someserver__post_message`) or the shell command.
+      placeholder: mcp__someserver__post_message
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Which classification mode should cover it?
+      options:
+        - Mode 1 - carries an explicit URL in tool_input
+        - Mode 2 - fixed-backend connector (no URL in payload)
+        - Mode 3 - generic network/send name (fetch/http/send/upload/webhook)
+        - Shell - curl/wget/ssh/scp/git/gh
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why is it egress?
+      description: How does this tool or command reach the network? What destination can it send to?
+    validations:
+      required: true
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed policy addition (optional)
+      description: The glob you think should gate it (e.g. add `mcp__*post_message*` to `network_name_globs`).
+      render: json
+    validations:
+      required: false

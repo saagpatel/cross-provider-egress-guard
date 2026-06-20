@@ -1,0 +1,52 @@
+{
+	"_comment": "TEST FIXTURE for R12 (git/gh shell GitHub owner-scope). Mirrors policy-r6r7.json + adds egress.github_shell_owners. Used by tests/run-git-gh-egress-tests.sh. Operator applies the equivalent github_shell_owners key to the live policy — see docs/INSTALL.md.",
+	"deny": [],
+	"require_token": [],
+	"egress": {
+		"default": "deny",
+		"max_payload_bytes_to_novel_host": 512,
+		"non_egress_servers": [
+			"bridge-db",
+			"serena",
+			"engraph",
+			"cost-tracker",
+			"portfolio-health",
+			"personal_ops",
+			"plugin_context-mode_context-mode"
+		],
+		"url_tools": [
+			"mcp__*browser_navigate*",
+			"mcp__*ctx_fetch_and_index*",
+			"mcp__*browser_run_code_unsafe*",
+			"mcp__*browser_evaluate*"
+		],
+		"allow_hosts": [
+			"github.com",
+			"api.github.com",
+			"codeload.github.com",
+			"raw.githubusercontent.com",
+			"objects.githubusercontent.com",
+			"gist.githubusercontent.com",
+			"api.vercel.com",
+			"vercel.com",
+			"*.anthropic.com",
+			"claude.ai"
+		],
+		"connector_tools": ["mcp__codex_apps__*", "mcp__claude_ai_*"],
+		"allow_connectors": ["mcp__codex_apps__github*"],
+		"connector_owner_scope": {
+			"mcp__*github*": ["example-owner"]
+		},
+		"_github_shell_owners_comment": "R12: GitHub owners the agent's git/gh WRITE-class SHELL commands may reach. Enforced in bash-egress-guard.sh (git/gh subcommand parser -> owner check) + Codex egress_shell_decision. A positively-identified disallowed owner on a write denies; reads to any owner pass; an undeterminable owner passes (R3-class). Key ABSENT => gate inactive (additive opt-in).",
+		"github_shell_owners": ["example-owner"],
+		"_github_shell_hosts_comment": "R13: hosts the agent's git/gh WRITE ops (git push, remote add/set-url, gh mutating) may target. A write whose determinable destination host is not on this list (and not loopback) denies — closes deceptive/non-github write destinations (homoglyph githμb.com, github.com.evil.com suffix, github.com@evil userinfo, IP-literal, punycode, gitlab). Reads are never host-gated. Undeterminable host passes (R3-class). Key ABSENT => R13 inactive (additive opt-in, mirrors github_shell_owners).",
+		"github_shell_hosts": ["github.com"],
+		"network_name_globs": [
+			"mcp__*fetch*",
+			"mcp__*http*",
+			"mcp__*send*",
+			"mcp__*upload*",
+			"mcp__*webhook*"
+		]
+	}
+}

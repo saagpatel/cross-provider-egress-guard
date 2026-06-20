@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability or bypass (private)
+    url: https://github.com/saagpatel/cross-provider-egress-guard/security/advisories/new
+    about: >-
+      Found a way around the guard, or any way to make data egress to a host the policy
+      should have blocked? That is a vulnerability. Report it privately here, never as a
+      public issue.

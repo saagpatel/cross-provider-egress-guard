@@ -1,0 +1,60 @@
+{
+	"_README": "EXAMPLE policy for the cross-provider egress guard. Copy this to ~/.claude/mcp-gate-policy.json and EDIT the allow-lists for YOUR environment. The default is DENY for any network/send-class tool whose destination is not explicitly allow-listed below — so an empty or trimmed list fails closed (safe), never open. Contains hostnames and tool-name globs ONLY: no secrets, no tokens. Both Claude Code (mcp-guard.sh / bash-egress-guard.sh) and Codex (codex-egress.patch) read this same file and fail closed if it is missing, unreadable, or invalid JSON. See docs/THREAT-MODEL.md for the enforcement model and docs/INSTALL.md to deploy.",
+
+	"deny": [],
+
+	"_require_token_comment": "OPTIONAL: tool-name globs that require a fresh single-use confirmation token before they run (a second factor for destructive/high-risk tools). Independent of egress. Leave empty if you do not use a token-gate hook.",
+	"require_token": [],
+
+	"egress": {
+		"default": "deny",
+		"max_payload_bytes_to_novel_host": 512,
+
+		"_non_egress_servers_comment": "Checked FIRST. Local / loopback / filesystem MCP servers that never make agent-driven egress to arbitrary hosts — they skip the gate entirely. Replace these with YOUR local-only servers. If any of these is ever swapped for a hosted backend, REMOVE it from this list.",
+		"non_egress_servers": ["serena"],
+
+		"_url_tools_comment": "Mode 1 — tools that carry an explicit URL in tool_input. Allowed iff EVERY extracted host is in allow_hosts. A URL tool with no extractable host is denied (destination unverifiable). Deceptive hosts (userinfo-spoof, trailing-dot, punycode, IP-literal) are normalized to their true host before matching.",
+		"url_tools": [
+			"mcp__*browser_navigate*",
+			"mcp__*ctx_fetch_and_index*",
+			"mcp__*browser_run_code_unsafe*",
+			"mcp__*browser_evaluate*"
+		],
+
+		"_allow_hosts_comment": "EXAMPLE host allow-list — REPLACE with the hosts YOUR agents legitimately need. Pin specific subdomains; avoid multi-tenant wildcards (e.g. *.somecloud.app) that an attacker can also provision a tenant on. Vendor-owned trust anchors (e.g. *.anthropic.com) are acceptable wildcards.",
+		"allow_hosts": [
+			"github.com",
+			"api.github.com",
+			"codeload.github.com",
+			"raw.githubusercontent.com",
+			"objects.githubusercontent.com",
+			"*.anthropic.com",
+			"claude.ai"
+		],
+
+		"_connector_tools_comment": "Mode 2 — fixed-backend connectors that carry NO URL in tool_input (the destination is the connector backend, implicit in the tool name). Allowed iff the full tool name matches an allow_connectors glob; an unknown or renamed connector is denied.",
+		"connector_tools": ["mcp__codex_apps__*", "mcp__claude_ai_*"],
+		"allow_connectors": [
+			"mcp__claude_ai_Context7*",
+			"mcp__codex_apps__github*"
+		],
+
+		"_connector_owner_scope_comment": "OPTIONAL finer scope on a connector class: a connector matching the glob may act only on allow-listed resource owners (read from owner/org/organization/repoOwner fields, owner/repo in repository/full_name, and github.com/<owner> URLs). A positively-identified disallowed owner is denied; a call with no detectable owner passes. Example below scopes any github connector to a single owner — replace 'your-org' with yours, or delete this key to allow any owner.",
+		"connector_owner_scope": {
+			"mcp__*github*": ["your-org"]
+		},
+
+		"_network_name_globs_comment": "Mode 3 — fail-closed catch-all. Any tool whose NAME signals network/send behavior but matches neither Mode 1 nor Mode 2 is denied unless its server is in non_egress_servers. This is the backstop for HTTP/send-class tools from arbitrary MCP servers.",
+		"network_name_globs": [
+			"mcp__*fetch*",
+			"mcp__*http*",
+			"mcp__*send*",
+			"mcp__*upload*",
+			"mcp__*webhook*"
+		],
+
+		"_github_shell_comment": "OPTIONAL (shell hooks only): owner/host allow-lists for git/gh WRITE operations run via the shell (git push, gh pr create, gh api POST, ...). Reads (clone/fetch/pull, gh view/list) are never gated. Armed only when present — delete these keys to disable. Owner-scope denies a write to a disallowed GitHub owner; host allow-list denies a write to a deceptive/non-GitHub host.",
+		"github_shell_owners": ["your-org"],
+		"github_shell_hosts": ["github.com"]
+	}
+}

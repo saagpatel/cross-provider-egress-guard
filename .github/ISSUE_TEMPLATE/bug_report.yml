@@ -1,0 +1,61 @@
+name: Bug report
+description: A functional bug that is NOT a security bypass (false-positive deny, crash, doc error).
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Found a way around the guard?** That is a vulnerability, not a bug. Do not file it
+        here. Report it privately: see [SECURITY.md](../blob/main/SECURITY.md). This form is
+        for functional bugs only (a legitimate call wrongly denied, a crash, a doc error).
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which surface?
+      description: Where did the behavior occur?
+      options:
+        - Claude Code - mcp-guard.sh (MCP tool calls)
+        - Claude Code - bash-egress-guard.sh (shell curl/wget/ssh/git/gh)
+        - Claude Code - sensitive-read guard
+        - Codex - codex-egress.patch
+        - Tests / CI
+        - Docs
+        - Other / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did the guard do, and what did you expect instead?
+      placeholder: A legitimate call to <host> was denied, but it is on my allow_hosts...
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: |
+        The exact tool call or command, and how you ran it. If you can reproduce it against
+        the in-repo demo, even better.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: policy
+    attributes:
+      label: Relevant policy snippet
+      description: |
+        The relevant part of your policy JSON. REDACT private hostnames, owners, and any
+        internal identifiers before pasting. The guard's policy holds no secrets, but your
+        allow-lists may name internal infrastructure.
+      render: json
+    validations:
+      required: false
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, bash version (`bash --version`), jq version (`jq --version`), and the commit/tag you are on.
+    validations:
+      required: false

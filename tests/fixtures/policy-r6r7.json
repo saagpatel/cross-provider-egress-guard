@@ -1,0 +1,82 @@
+{
+	"_comment": "TEST FIXTURE for R6 (connector_owner_scope) + R7 (no attacker-provisionable wildcard hosts). Mirrors the canonical ~/.claude/mcp-gate-policy.json egress block AFTER R6/R7. Used by tests/run-r6r7-tests.sh. The operator applies the equivalent change to the live policy — see docs/INSTALL.md.",
+	"deny": [],
+	"require_token": [],
+	"egress": {
+		"default": "deny",
+		"max_payload_bytes_to_novel_host": 512,
+		"non_egress_servers": [
+			"bridge-db",
+			"serena",
+			"engraph",
+			"cost-tracker",
+			"portfolio-health",
+			"personal_ops",
+			"plugin_context-mode_context-mode"
+		],
+		"url_tools": [
+			"mcp__*browser_navigate*",
+			"mcp__*ctx_fetch_and_index*",
+			"mcp__*browser_run_code_unsafe*",
+			"mcp__*browser_evaluate*"
+		],
+		"_allow_hosts_comment": "R7: removed attacker-provisionable wildcards *.vercel.app and *.atlassian.net (anyone can register a subdomain). Vendor-owned wildcards narrowed to fixed known subdomains. *.anthropic.com kept (Anthropic-owned trust anchor; not multi-tenant-provisionable).",
+		"allow_hosts": [
+			"github.com",
+			"api.github.com",
+			"codeload.github.com",
+			"raw.githubusercontent.com",
+			"objects.githubusercontent.com",
+			"avatars.githubusercontent.com",
+			"camo.githubusercontent.com",
+			"media.githubusercontent.com",
+			"user-images.githubusercontent.com",
+			"private-user-images.githubusercontent.com",
+			"gist.githubusercontent.com",
+			"api.vercel.com",
+			"vercel.com",
+			"api.cloudflare.com",
+			"dash.cloudflare.com",
+			"api.box.com",
+			"app.box.com",
+			"upload.box.com",
+			"dl.box.com",
+			"drive.google.com",
+			"docs.google.com",
+			"sheets.google.com",
+			"mail.google.com",
+			"calendar.google.com",
+			"accounts.google.com",
+			"app.slack.com",
+			"*.anthropic.com",
+			"claude.ai"
+		],
+		"connector_tools": ["mcp__codex_apps__*", "mcp__claude_ai_*"],
+		"allow_connectors": [
+			"mcp__claude_ai_Vercel*",
+			"mcp__claude_ai_Google_Drive*",
+			"mcp__claude_ai_Cloudflare*",
+			"mcp__claude_ai_Context7*",
+			"mcp__codex_apps__github*",
+			"mcp__codex_apps__box*",
+			"mcp__codex_apps__atlassian*",
+			"mcp__codex_apps__jira*",
+			"mcp__codex_apps__gmail*",
+			"mcp__codex_apps__drive*",
+			"mcp__codex_apps__slack*",
+			"mcp__codex_apps__vercel*",
+			"mcp__codex_apps__cloudflare*"
+		],
+		"_connector_owner_scope_comment": "R6: a connector matching a scope glob may only act on allow-listed resource owners. Owners are read from the payload (github.com/<owner> URLs + owner/org/organization/repoOwner fields, owner/repo in repository/full_name). A POSITIVELY identified owner not on the list is denied; a call with no detectable owner passes (the remaining R6 surface — same class as R3, documented).",
+		"connector_owner_scope": {
+			"mcp__*github*": ["example-owner"]
+		},
+		"network_name_globs": [
+			"mcp__*fetch*",
+			"mcp__*http*",
+			"mcp__*send*",
+			"mcp__*upload*",
+			"mcp__*webhook*"
+		]
+	}
+}

@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege: the suite is read-only and offline; it needs nothing but the checkout.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  egress-suite:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install bats + jq
+        run: sudo apt-get update && sudo apt-get install -y bats jq
+
+      - name: Deterministic egress suite (the demo)
+        run: bash tests/run-all.sh
+
+      - name: bats unit tests (mcp-guard egress)
+        env:
+          HOOK: ${{ github.workspace }}/claude-code/hooks/mcp-guard.sh
+          MCP_GATE_POLICY: ${{ github.workspace }}/tests/fixtures/policy-r6r7.json
+        run: bats claude-code/hooks/tests/mcp-guard-egress.bats
+
+      - name: bats unit tests (bash egress)
+        env:
+          HOOK: ${{ github.workspace }}/claude-code/hooks/bash-egress-guard.sh
+          MCP_GATE_POLICY: ${{ github.workspace }}/tests/fixtures/policy-r6r7.json
+        run: bats claude-code/hooks/tests/bash-egress.bats
