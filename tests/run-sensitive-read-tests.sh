@@ -17,14 +17,20 @@ rsa_base="id""_rsa"
 pass=0
 fail=0
 
+# Quote a command string as a JSON value. Reads the command from STDIN, not argv,
+# on purpose: a single argv element larger than Linux's MAX_ARG_STRLEN (128 KiB)
+# makes execve fail with E2BIG, which would silently break the oversized-input
+# case on Linux CI (json_quote returns empty, the command collapses, the hook
+# allows) while passing on macOS, which has no per-argument limit. Piping keeps
+# the big string off argv.
 json_quote() {
-  /usr/bin/python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$1"
+  /usr/bin/python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'
 }
 
 run_case() {
   local name="$1" expect="$2" command="$3" out got
   out=$(printf '{"tool_name":"Bash","tool_input":{"command":%s},"cwd":"/tmp/project"}\n' \
-    "$(json_quote "$command")" \
+    "$(printf '%s' "$command" | json_quote)" \
     | bash "$HOOK" 2>/dev/null)
 
   if printf '%s' "$out" | grep -q '"permissionDecision":[[:space:]]*"deny"'; then
