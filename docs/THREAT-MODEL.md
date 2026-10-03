@@ -236,8 +236,11 @@ Each residual names its real fix and why it's deferred.
 
 The frozen tables in §A/§B are the **Phase-0 historical record** and are intentionally
 left unedited. Subsequent residual closures tightened the live allow-list and added a
-mechanism; the current canonical policy shape lives in `tests/fixtures/policy-r6r7.json`
-and is applied to `~/.claude/mcp-gate-policy.json` per [docs/INSTALL.md](INSTALL.md).
+mechanism; the current starter policy lives in `policy/mcp-gate-policy.example.json`
+and is copied to `~/.claude/mcp-gate-policy.json` per [docs/INSTALL.md](INSTALL.md).
+`tests/fixtures/policy-r6r7.json` is a regression fixture. Current coverage and policy-failure
+differences are described in [DESIGN.md](DESIGN.md); the frozen guarantees above are not
+proof of current provider equivalence.
 
 - **R7 (closed 2026-06-11): drop attacker-provisionable wildcards.** §A's Mode-1 header
   promised "no open wildcards on multi-tenant public domains," but the frozen `allow_hosts`
@@ -255,7 +258,8 @@ and is applied to `~/.claude/mcp-gate-policy.json` per [docs/INSTALL.md](INSTALL
   payload (`owner`/`org`/`organization`/`repoOwner` as string or `{login}`,
   `repository`/`full_name` owner-part, `<host>/<owner>` URLs); a positively-identified
   disallowed owner denies, a call with no detectable owner passes (remaining surface, R3-class).
-  parity-check now asserts both hooks consume `connector_owner_scope` (19 checks).
+  parity-check statically checks both surfaces for `connector_owner_scope` references
+  (23 total checks, including the later shell owner/host keys).
 - **R11 (reviewed, kept accepted):** a shell network verb mentioned but not executed
   (`which curl`, `man curl`) trips the fail-closed "no verifiable host" deny. A safe
   false-positive is preferred over an exfil false-negative; see [LIMITATIONS.md](../LIMITATIONS.md).

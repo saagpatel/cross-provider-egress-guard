@@ -1,1 +1,1 @@
-`egress-guard.tape` is the [VHS](https://github.com/charmbracelet/vhs) source used to regenerate `egress-guard.gif`; run `vhs egress-guard.tape` to rebuild the GIF after updating `demo.sh`.
+`demo/egress-guard.tape` is the [VHS](https://github.com/charmbracelet/vhs) source used to regenerate `demo/egress-guard.gif`; run `vhs demo/egress-guard.tape` from the repository root to rebuild the GIF after updating `demo/demo.sh`.

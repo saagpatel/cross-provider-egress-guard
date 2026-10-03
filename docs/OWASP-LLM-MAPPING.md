@@ -21,7 +21,7 @@ control contributes to each risk, and where it stops. Read it alongside
 | ID | Risk | Coverage | What the egress guard contributes |
 |----|------|----------|-----------------------------------|
 | LLM01 | Prompt Injection | **Partial** | Cannot stop injection; caps its blast radius by denying the exfil/callback egress a payload needs. |
-| LLM02 | Sensitive Information Disclosure | **Primary** | Default-deny on every network/send-class call is the exfiltration choke point: data cannot leave to a host you did not allow-list. |
+| LLM02 | Sensitive Information Disclosure | **Primary** | Destination checks on classified network/send calls constrain arbitrary-host exfiltration; coverage differs by provider. |
 | LLM03 | Supply Chain | Out of scope | Does not vet models, packages, or plugins. |
 | LLM04 | Data and Model Poisoning | Out of scope | No control over training or retrieval data. |
 | LLM05 | Improper Output Handling | **Marginal** | The shell gate incidentally blocks some generated-command egress (SSRF-shaped `curl` to a disallowed host); not a substitute for output sanitization. |
@@ -35,11 +35,11 @@ control contributes to each risk, and where it stops. Read it alongside
 
 ### LLM02: Sensitive Information Disclosure (Primary)
 
-This is the risk the project exists for. Every network/send-class tool call, MCP connector
-action, and shell network command (`curl`/`wget`/`ssh`, and `git`/`gh` writes) is denied by
-default unless its destination is on an allow-list you control. A model that has read your
-secrets, source, or customer data still cannot ship them to an attacker-controlled host,
-because the destination of that send is gated before the call dispatches.
+This is the risk the project exists for. With a valid default-deny policy, classified MCP
+network/send calls and supported shell network commands (`curl`/`wget`/`ssh`) are gated
+against destination allow-lists before dispatch. Git/`gh` write owner/host gates are opt-in.
+The providers differ in unknown-tool coverage, loopback exemptions, and policy failure
+handling; see [DESIGN.md](DESIGN.md). Unclassified transports are not universally blocked.
 
 **Residual:** the gate controls the *destination*, not the *payload*. Exfiltration to a
 host that is on your allow-list (for example, writing to a Gist on an allow-listed GitHub
@@ -50,10 +50,11 @@ host, then reading it back) is not prevented. See R1/R2 in
 
 OWASP's recommended mitigations for excessive agency include minimizing the agent's
 permissions and gating high-impact actions. Default-deny egress does exactly that for one
-high-impact capability: the ability to reach arbitrary network destinations. Out of the box
-the agent can reach nothing it was not explicitly granted, and a missing or malformed policy
-fails closed rather than open. The same policy binds both Claude Code and Codex, so the
-agent's network blast radius cannot quietly differ between the two runtimes.
+high-impact capability: the ability to reach arbitrary network destinations through
+classified tools and supported shell verbs. Both providers default to the same policy
+path, but enforcement is not identical. A missing or malformed policy invokes different
+MCP fallback rules and disables the optional git/`gh` owner/host gates; see
+[DESIGN.md](DESIGN.md).
 
 **Residual:** this constrains the *egress* facet of agency only. Excessive agency over the
 local filesystem, destructive shell commands, or in-process state is the job of other hooks
@@ -65,8 +66,9 @@ The guard does not detect or prevent prompt injection. Injection carried in tool
 explicitly out of scope (R4 in [THREAT-MODEL.md](THREAT-MODEL.md)). What it does is cap the
 *consequences*: the most common goal of an injection payload against a coding agent is to
 exfiltrate data or call back to an attacker host, and that step is a gated egress call. A
-successful injection that tells the agent to POST your environment to `evil.tld` still
-fails at the wall. It reduces impact, not likelihood; treat it as defense in depth behind
+successful injection that tells the agent to POST your environment to `evil.tld` is denied
+when it uses a covered tool or shell transport with a valid default-deny policy. It reduces
+impact, not likelihood; treat it as defense in depth behind
 input controls, not a prompt-injection defense on its own.
 
 ### LLM07: System Prompt Leakage (Partial)

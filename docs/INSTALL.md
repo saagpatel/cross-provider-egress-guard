@@ -4,19 +4,22 @@ Two agents, one shared policy. Deploy the Claude Code hooks, apply the Codex pat
 both at the same `mcp-gate-policy.json`. Hooks contain logic only; the policy is the single
 source of truth you edit.
 
-> Adapt the paths below to your setup. The hooks honor the `MCP_GATE_POLICY` environment
-> variable and otherwise default to `~/.claude/mcp-gate-policy.json`.
+> Adapt the paths below to your setup. The Claude MCP and Bash egress hooks honor
+> `MCP_GATE_POLICY`; the Codex patch and Claude sensitive-read hook honor
+> `CODEX_EGRESS_POLICY`. All default to `~/.claude/mcp-gate-policy.json`.
 
 ## 1. Policy (shared by both agents)
 
 Copy the example policy and edit the allow-lists for your environment:
 
 ```bash
+mkdir -p ~/.claude
 cp policy/mcp-gate-policy.example.json ~/.claude/mcp-gate-policy.json
 $EDITOR ~/.claude/mcp-gate-policy.json
 ```
 
-The default is **deny**: anything you do not allow-list is blocked. Start minimal (just the
+With `egress.default == "deny"`, classified egress calls are checked against the
+allow-lists (Codex and shell host checks exempt loopback). Start minimal (just the
 hosts/connectors you actually need) and widen deliberately. The policy is read fresh on every
 call; no restart needed to retune.
 
@@ -86,10 +89,11 @@ From the repo, the full offline suite (no live install required) is the fastest 
 check:
 
 ```bash
-bash tests/run-all.sh
+CODEX_EGRESS_POLICY="$PWD/tests/fixtures/policy-r6r7.json" bash tests/run-all.sh
 ```
 
-To prove the two agents enforce the *same* allow-list with no divergent hardcoded list:
+To check shared policy-key references and the absence of selected hardcoded host literals
+(without executing the Codex patch):
 
 ```bash
 MCP_GATE_POLICY=tests/fixtures/policy-r6r7.json bash tests/parity-check.sh

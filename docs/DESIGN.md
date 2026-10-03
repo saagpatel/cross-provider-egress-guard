@@ -22,7 +22,8 @@ Two agents, one machine, shared state, and **no egress destination control on ei
 
 The unifying fix is one **default-deny egress allow-list**, enforced at each agent's existing
 PreToolUse choke point, driven by a single shared policy file. Network/send-class tools must
-name an allow-listed destination; everything else is unaffected.
+match the configured host or connector allow-list; separate content, token, and
+sensitive-read guards can also deny calls.
 
 ## System overview
 
@@ -32,52 +33,67 @@ tool call ─▶ PreToolUse hook ─▶ egress classifier ─▶ destination ext
                                       │                         ▼
                                       │              match against the shared allow-list
                                       ▼                         │
-                              non-network tool            in list ─▶ allow + audit
-                              ─▶ existing logic            not in list ─▶ DENY + audit
-                                                           novel host + payload > size cap ─▶ DENY
+                              non-network tool            in list ─▶ existing logic
+                              ─▶ existing logic            not in list ─▶ DENY
+                                                           Claude MCP novel host + payload > size cap ─▶ DENY
 ```
 
 The classifier is **additive**: non-network tools fall through to the agent's existing logic
 unchanged. Only network/send-class tools take the new default-deny destination check.
 
-## Classification: four modes, checked in order
+## Classification: MCP modes, checked in order
 
 1. **URL-host**: tools that carry an explicit URL. Allowed iff every extracted host is in
    `allow_hosts`; deceptive hosts are normalized to their true host first; no host ⇒ deny.
+   Codex also allows loopback hosts independently of `allow_hosts`. Local
+   `non_egress_servers` bypass the remaining modes after URL-host matching.
 2. **Connector-class**: fixed-backend connectors (no URL in payload). Allowed iff the full
    tool name matches an `allow_connectors` glob; unknown/renamed ⇒ deny. Optional
    `connector_owner_scope` restricts a connector to allow-listed resource owners.
 3. **Generic-network catch-all**: a tool whose name signals network/send behavior but matches
    neither mode above ⇒ fail-closed deny unless its server is local (`non_egress_servers`).
-4. **Unknown tool carrying a `scheme://host` payload** ⇒ fail-closed deny.
+4. **Unknown tool carrying a `scheme://host` payload** ⇒ fail-closed deny in the Claude
+   MCP hook only; the Codex patch falls through to allow after Mode 3.
 
 The shell hook applies the same `allow_hosts` to `curl`/`wget`/`ssh`, and owner/host-scopes
-`git push` / `gh` **writes** (reads are never gated, local data can't leave without hitting an
-already-gated send). See [THREAT-MODEL.md](THREAT-MODEL.md) for the exact rules and the
+`git push` / `gh` **writes** when `github_shell_owners` / `github_shell_hosts` are
+present. Git/`gh` reads skip these write gates; explicit shell network verbs still
+trigger host checks. See [THREAT-MODEL.md](THREAT-MODEL.md) for the exact rules and the
 threat-gap → verifier traceability.
 
 ## Data model: the policy
 
 A single JSON file (`mcp-gate-policy.json`) is the source of truth. It contains **hostnames
-and tool-name globs only, no secrets, no tokens**. See
+and tool-name globs, owner scopes, thresholds, and control settings; no secrets or tokens**. See
 [policy/mcp-gate-policy.example.json](../policy/mcp-gate-policy.example.json) for the full
 schema with inline documentation. Key properties:
 
 - `egress.default = "deny"` applies **only** to tools matching a network mode; all other
   tools keep default-allow.
-- Empty `allow_hosts` / `allow_connectors` arrays are fail-closed by construction (nothing
-  matches → deny).
-- Policy writes should be atomic (`jq > tmp && mv`) so a partial read is invalid-JSON →
-  fail-closed, never a half-applied allow-list.
+- Empty `allow_hosts` denies external URL-mode destinations (Codex exempts loopback);
+  empty `allow_connectors` denies classified connectors outside local-server bypasses.
+- Policy writes should be atomic so readers do not observe partial JSON; unavailable
+  policy invokes the provider-specific fallback described below.
 
 ## Cross-provider parity
 
-Both agents read the **same** `mcp-gate-policy.json` `egress` block. Neither embeds a
-divergent hardcoded host list in its enforcement code, so drift between the two is
-structurally impossible, and "diff the two allow-lists is empty" is trivially satisfied.
-Each consumer **fails closed** if the file is absent, unreadable, not valid JSON, missing the
-`egress` key, or missing `egress.default`. `tests/parity-check.sh` asserts both surfaces
-consume the same keys and embed no divergent literal.
+Both providers default to the same `mcp-gate-policy.json` path, with separate overrides
+(`MCP_GATE_POLICY` for Claude egress hooks; `CODEX_EGRESS_POLICY` for Codex).
+`tests/parity-check.sh` checks policy-key references and selected hardcoded host literals
+statically; it does not execute Codex or prove behavioral equivalence.
+
+The Claude MCP hook skips its egress gate if valid JSON lacks `egress.default == "deny"`.
+On missing, unreadable, or invalid JSON, it uses fallback network-name denies, an unknown-URL
+catch-all, local-server exemptions, and token gates; it does not deny every connector.
+Codex rejects a missing or non-deny `egress` block and denies known connector namespaces
+and selected network-name tools, while other MCP tools fall through to allow.
+Both shell network-verb gates deny when policy is unavailable, but the optional git/`gh`
+owner/host gates are inactive then.
+
+Coverage also differs: Claude has the Mode 4 catch-all and additional shell checks for DNS
+commands, `/dev/tcp|udp`, URL-opening commands, download execution, and raw GitHub API
+writes; these are absent from the Codex patch. Codex allows URL-mode loopback hosts;
+Claude MCP requires an allow-list match and Claude shell rejects bracketed IPv6 loopback.
 
 ## Scope boundaries
 

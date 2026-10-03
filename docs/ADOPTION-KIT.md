@@ -33,10 +33,10 @@ operator workflow. Hardening one provider while leaving the other permissive
 creates a soft path through the weaker harness.
 
 This repo's control claim is parity: Claude Code hooks and Codex hook logic read
-the same `mcp-gate-policy.json` egress block and fail closed on malformed or
-missing policy. `tests/parity-check.sh` verifies that the two enforcement
-surfaces consume the same policy keys instead of embedding divergent allow-lists
-in code.
+the same `mcp-gate-policy.json` egress block by default. Policy failure handling and
+coverage differ by provider; see `docs/DESIGN.md`. `tests/parity-check.sh` statically
+checks shared policy-key references and selected hardcoded host literals; it does
+not execute the Codex enforcement code.
 
 ## Install Path
 
@@ -74,9 +74,9 @@ connector" deny case.
 No-secret, no-network checks:
 
 ```bash
-bash tests/run-all.sh
-bash tests/parity-check.sh
-bash tests/run-sensitive-read-tests.sh
+CODEX_EGRESS_POLICY="$PWD/tests/fixtures/policy-r6r7.json" bash tests/run-all.sh
+MCP_GATE_POLICY="$PWD/tests/fixtures/policy-r6r7.json" bash tests/parity-check.sh
+CODEX_EGRESS_POLICY="$PWD/tests/fixtures/policy-r6r7.json" bash tests/run-sensitive-read-tests.sh
 ```
 
 For a compact demo without installing hooks:
@@ -100,8 +100,8 @@ bash demo/demo.sh
 You have a useful receipt when all of these are true:
 
 - The shared policy parses and has `egress.default == "deny"`.
-- `tests/parity-check.sh` passes, proving both provider surfaces use the shared
-  policy keys.
+- `tests/parity-check.sh` passes its static checks for shared policy-key references
+  and selected hardcoded host literals.
 - The local regression suite passes.
 - A local spot check blocks at least one non-allow-listed egress attempt before
   it runs and allows at least one benign local or allow-listed read path.
