@@ -8,7 +8,7 @@ agent's own tool-dispatch boundary, across both Claude Code and Codex.**
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 > A default-deny firewall for your coding agent's tool calls: a hijacked or prompt-injected
-> agent can't ship your data to a host you didn't allow-list, and the **same policy covers
+> classified egress calls are gated against your allow-list, and the **same policy covers
 > both Claude Code and Codex**.
 
 ![The egress guard denying exfiltration attempts in a terminal: an attacker host, a userinfo-spoofed github.com@evil.tld, an unknown connector, and an arbitrary http_post tool are all denied; a legitimate github.com call is allowed; and the guard fails closed when the policy is missing](demo/egress-guard.gif)
@@ -25,8 +25,9 @@ model goes off the rails or a **prompt-injection payload rides in tool output**)
 into one tool call that ships data to an attacker-controlled host. Most agent setups have
 **no destination control** on that call: if the agent can name a URL, it can reach it.
 
-This guard closes that: **network/send-class tool calls and shell network commands are denied
-by default unless their destination is on an allow-list you control.**
+This guard closes that: **classified network/send tool calls and supported shell network
+commands are gated against an allow-list you control.** See [docs/DESIGN.md](docs/DESIGN.md) for coverage
+and policy-failure differences.
 
 ## What it is
 
@@ -36,13 +37,15 @@ allow-list policy. It runs *inside the agent's own dispatch cycle* (no network
 reconfiguration, no proxy to stand up, no per-app SDK changes) and enforces the **same
 policy across both agents** from a single source of truth.
 
-- **Default-deny** for network/send-class tools; everything else is unaffected.
+- **Default-deny** for classified network/send tools when `egress.default` is `"deny"`;
+  separate content, token, and sensitive-read guards can also deny calls.
 - **Per-destination** host allow-listing and **per-connector** scoping (including resource
   owner scoping, e.g. only your GitHub org).
-- **Fail-closed**: a missing, unreadable, or invalid policy denies; it never falls open.
+- **Policy failure handling**: shell network verbs deny when the policy is unavailable.
+  MCP fallback coverage differs by provider; see [docs/DESIGN.md](docs/DESIGN.md).
 - **Cross-provider**: Claude Code (`mcp-guard.sh` + `bash-egress-guard.sh`) and Codex
-  (`codex-egress.patch`) read the *same* `mcp-gate-policy.json`, so the two agents can't drift
-  to different blast radii.
+  (`codex-egress.patch`) default to the *same* `mcp-gate-policy.json`; enforcement coverage
+  differs in some cases (see [docs/DESIGN.md](docs/DESIGN.md)).
 
 ## Where it sits (honest positioning)
 
@@ -63,11 +66,13 @@ choke point.
 
 ## How it works
 
-A tool call is classified into exactly one mode (checked in order):
+With a valid default-deny policy, MCP tool calls use the following modes (checked in
+order; local `non_egress_servers` bypass after URL-host matching):
 
 1. **URL-host**: tools carrying an explicit URL (browser navigate, fetch). Allowed iff every
    extracted host ∈ `allow_hosts`. Deceptive hosts (userinfo-spoof, trailing-dot, punycode,
    IP-literal) are normalized to their true host first; no extractable host ⇒ deny.
+   Codex also allows loopback hosts independently of `allow_hosts`.
 2. **Connector-class**: fixed-backend connectors with no URL in the payload. Allowed iff the
    full tool name matches an `allow_connectors` glob; unknown/renamed connector ⇒ deny.
    Optional `connector_owner_scope` further restricts a connector to allow-listed resource
@@ -75,11 +80,14 @@ A tool call is classified into exactly one mode (checked in order):
 3. **Generic-network catch-all**: any tool whose *name* signals network/send behavior but
    matches neither mode above ⇒ **fail-closed deny** unless its server is local
    (`non_egress_servers`).
-4. **Unknown tool carrying a `scheme://host` payload** ⇒ fail-closed deny.
+4. **Unknown tool carrying a `scheme://host` payload** ⇒ fail-closed deny in the Claude
+   MCP hook; the Codex patch has no equivalent catch-all.
 
 The shell hook (`bash-egress-guard.sh`, and the Codex side) applies the same allow-list to
-`curl`/`wget`/`ssh` and owner/host-scopes `git push` / `gh` **writes** (reads are never
-gated). Full model: [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) and
+`curl`/`wget`/`ssh` and optionally owner/host-scopes `git push` / `gh` **writes**
+when `github_shell_owners` / `github_shell_hosts` are present. Git/`gh` reads skip those
+write gates, but explicit shell network verbs can still trigger the host gate. Full model:
+[docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) and
 [docs/DESIGN.md](docs/DESIGN.md). Mapped to the
 [OWASP Top 10 for LLM Applications (2025)](docs/OWASP-LLM-MAPPING.md).
 
@@ -90,16 +98,20 @@ No install required — runs entirely offline against the in-repo hooks:
 ```bash
 git clone https://github.com/saagpatel/cross-provider-egress-guard
 cd cross-provider-egress-guard
-bash tests/run-all.sh        # runs the full deterministic suite against the in-repo hooks
+CODEX_EGRESS_POLICY="$PWD/tests/fixtures/policy-r6r7.json" bash tests/run-all.sh
+# runs the full deterministic suite against the in-repo hooks
 ```
 
 You'll watch egress denies fire across every mode (navigation to a non-allow-listed host,
 unknown connectors, deceptive GitHub hosts, oversized novel-host payloads) and legitimate
-allow-listed calls pass. Requires `bash` and `jq` on PATH; install `jq` separately if it is missing.
+allow-listed calls pass. Requires `bash`, `jq`, `git`, and `/usr/bin/python3` (used by the
+sensitive-read harness);
+install missing prerequisites separately.
 See [CONTRIBUTING.md](CONTRIBUTING.md#development-setup) for focused checks and the
 additional bats mirrors run by CI.
-This same suite (200+ assertions across both agents' enforcement, plus a cross-provider
-parity check proving they read one shared policy) is the CI gate.
+This suite (200+ assertions against the Claude Code hooks, plus static checks of policy
+key references in the hooks and Codex patch) is part of the CI gate. It does not execute
+the Codex tests embedded in the patch.
 
 ## Install
 
