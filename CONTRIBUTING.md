@@ -36,7 +36,8 @@ These are non-negotiable for any change to enforcement logic:
 
 ## Development setup
 
-You need `bash` and `jq` (preinstalled on macOS and most Linux). For the unit tests you also
+Run commands from the repository root. You need `bash` and `jq` on PATH; `jq` may
+need a separate package-manager installation. For the bats mirrors you also
 need [`bats-core`](https://github.com/bats-core/bats-core) (`brew install bats-core` or your
 package manager).
 
@@ -45,6 +46,31 @@ Run the full deterministic suite, which is also the CI gate:
 ```bash
 bash tests/run-all.sh        # 200+ assertions + cross-provider parity, offline
 ```
+
+The harness uses repository hooks and fixture policies, without installing hooks or
+changing `~/.claude` configuration. For a focused MCP-hook check, keep both overrides:
+
+```bash
+HOOK="$PWD/claude-code/hooks/mcp-guard.sh" \
+MCP_GATE_POLICY="$PWD/tests/fixtures/policy-r6r7.json" \
+bash tests/run-egress-tests.sh
+```
+
+The individual harness defaults can use installed hooks/personal policies, so do not
+omit these overrides. CI also runs the two bats mirrors with the same fixture policy:
+
+```bash
+HOOK="$PWD/claude-code/hooks/mcp-guard.sh" \
+MCP_GATE_POLICY="$PWD/tests/fixtures/policy-r6r7.json" \
+bats claude-code/hooks/tests/mcp-guard-egress.bats
+HOOK="$PWD/claude-code/hooks/bash-egress-guard.sh" \
+MCP_GATE_POLICY="$PWD/tests/fixtures/policy-r6r7.json" \
+bats claude-code/hooks/tests/bash-egress.bats
+```
+
+These checks use synthetic tool payloads, not real network writes or a live agent.
+They do not establish installed-provider enforcement. See
+[CI](.github/workflows/ci.yml) for the complete gate; no build or browser lane is configured.
 
 Every behavior change ships with a test. A PR that changes what is allowed or denied without
 a corresponding test case will not be merged. Add cases to the relevant harness under

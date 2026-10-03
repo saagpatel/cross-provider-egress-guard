@@ -95,7 +95,9 @@ bash tests/run-all.sh        # runs the full deterministic suite against the in-
 
 You'll watch egress denies fire across every mode (navigation to a non-allow-listed host,
 unknown connectors, deceptive GitHub hosts, oversized novel-host payloads) and legitimate
-allow-listed calls pass. Requires only `bash` and `jq` (preinstalled on macOS/Linux).
+allow-listed calls pass. Requires `bash` and `jq` on PATH; install `jq` separately if it is missing.
+See [CONTRIBUTING.md](CONTRIBUTING.md#development-setup) for focused checks and the
+additional bats mirrors run by CI.
 This same suite (200+ assertions across both agents' enforcement, plus a cross-provider
 parity check proving they read one shared policy) is the CI gate.
 
